@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "version": "1.0",
+    "last_updated": "2026-08-01",
+    "expires": "2026-11-01",
+    "source": "EnterpriseSG / IMDA PSG Pre-approved Solutions",
+    "note": "Refresh quarterly via n8n workflow. Do not expose API keys in refresh script."
+  },
+  "grant_info": {
+    "name": "Productivity Solutions Grant (PSG)",
+    "administrated_by": "EnterpriseSG",
+    "max_support_rate": "50%",
+    "eligibility": [
+      "Registered and operating in Singapore",
+      "At least 30% local shareholding",
+      "Annual sales turnover < S$100M OR < 200 employees"
+    ],
+    "claim_url": "https://www.enterprisesg.gov.sg/financial-support/productivity-solutions-grant"
+  },
+  "sector_map": {
+    "F&B / Café / Restaurant": "Food Services",
+    "Retail Fashion / Apparel": "Retail",
+    "Hardware / Home Supplies": "Retail",
+    "Beauty / Wellness / Salon": "Retail",
+    "Education / Tuition Centre": "Training and Adult Education",
+    "Professional Services": "Financial Services",
+    "Logistics / Delivery": "Logistics",
+    "Other": "Retail"
+  },
+  "solutions": {
+    "accounting": {
+      "category": "Financial Management",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "Xero", "pricing": "S$35–90/mo", "psg_vendor": true, "url": "xero.com" },
+        { "name": "QuickBooks Online", "pricing": "S$30–75/mo", "psg_vendor": true, "url": "quickbooks.intuit.com" },
+        { "name": "Financio", "pricing": "S$25–60/mo", "psg_vendor": true, "url": "financio.com" }
+      ]
+    },
+    "payments": {
+      "category": "Digital Payments",
+      "psg_eligible": false,
+      "note": "PayNow is free via your bank. No PSG required.",
+      "solutions": [
+        { "name": "PayNow QR", "pricing": "Free", "psg_vendor": false },
+        { "name": "Stripe", "pricing": "2.2% + S$0.35 per txn", "psg_vendor": false },
+        { "name": "HitPay", "pricing": "Free setup, txn fees apply", "psg_vendor": false }
+      ]
+    },
+    "pos": {
+      "category": "Point-of-Sale",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "Lightspeed Retail", "pricing": "S$100–200/mo", "psg_vendor": true },
+        { "name": "Shopify POS", "pricing": "S$50–100/mo", "psg_vendor": true },
+        { "name": "Square POS", "pricing": "Free–S$60/mo", "psg_vendor": false }
+      ]
+    },
+    "ecommerce": {
+      "category": "E-Commerce",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "Shopify", "pricing": "S$50–250/mo", "psg_vendor": true },
+        { "name": "Shopee Store", "pricing": "Commission-based", "psg_vendor": false },
+        { "name": "Lazada Store", "pricing": "Commission-based", "psg_vendor": false },
+        { "name": "Wix eCommerce", "pricing": "S$25–60/mo", "psg_vendor": true }
+      ]
+    },
+    "crm": {
+      "category": "Customer Relationship Management",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "HubSpot CRM", "pricing": "Free–S$180/mo", "psg_vendor": true },
+        { "name": "Salesforce Essentials", "pricing": "S$35/user/mo", "psg_vendor": true },
+        { "name": "Zoho CRM", "pricing": "S$20–60/user/mo", "psg_vendor": true }
+      ]
+    },
+    "inventory": {
+      "category": "Inventory Management",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "inFlow Inventory", "pricing": "S$80–200/mo", "psg_vendor": true },
+        { "name": "TradeGecko (QuickBooks Commerce)", "pricing": "S$100–250/mo", "psg_vendor": true },
+        { "name": "Cin7", "pricing": "S$150–300/mo", "psg_vendor": true }
+      ]
+    },
+    "hr_scheduling": {
+      "category": "HR & Scheduling",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "Deputy", "pricing": "S$30–60/mo", "psg_vendor": true },
+        { "name": "Talenox", "pricing": "S$30–80/mo", "psg_vendor": true },
+        { "name": "Swingvy", "pricing": "S$25–70/mo", "psg_vendor": true }
+      ]
+    },
+    "marketing": {
+      "category": "Digital Marketing",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "Meta Business Suite", "pricing": "Ad spend based", "psg_vendor": false },
+        { "name": "Google Business Profile", "pricing": "Free", "psg_vendor": false },
+        { "name": "Mailchimp", "pricing": "Free–S$70/mo", "psg_vendor": false },
+        { "name": "Canva Pro", "pricing": "S$20/mo", "psg_vendor": false }
+      ]
+    },
+    "customer_comms": {
+      "category": "Customer Communications",
+      "psg_eligible": false,
+      "solutions": [
+        { "name": "WhatsApp Business", "pricing": "Free", "psg_vendor": false },
+        { "name": "Tidio Chatbot", "pricing": "Free–S$40/mo", "psg_vendor": false }
+      ]
+    },
+    "analytics": {
+      "category": "Data Analytics",
+      "psg_eligible": true,
+      "solutions": [
+        { "name": "Google Analytics 4", "pricing": "Free", "psg_vendor": false },
+        { "name": "Looker Studio", "pricing": "Free", "psg_vendor": false },
+        { "name": "Power BI", "pricing": "S$15/user/mo", "psg_vendor": false }
+      ]
+    }
+  },
+  "skillsfuture_courses": {
+    "digital_basics": {
+      "title": "Digital Literacy for Business",
+      "provider": "SkillsFuture Singapore",
+      "funding": "Up to 90% SSG subsidy",
+      "url": "https://www.myskillsfuture.gov.sg"
+    },
+    "ecommerce": {
+      "title": "E-Commerce for SMEs",
+      "provider": "Shopee / Lazada Academy + SSG",
+      "funding": "Up to 70% subsidy"
+    },
+    "data_analytics": {
+      "title": "Data Analytics for Business Decisions",
+      "provider": "NTUC LearningHub / Kaplan",
+      "funding": "Up to 70% SSG subsidy"
+    },
+    "digital_marketing": {
+      "title": "Digital Marketing Fundamentals",
+      "provider": "General Assembly / Equinet Academy",
+      "funding": "Up to 70% SSG subsidy"
+    }
+  }
+}
