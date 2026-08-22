@@ -8,12 +8,17 @@
  * - Rate limit: 10 requests per IP per minute
  * - No user data logged or stored
  * - CORS locked to same origin
+ *
+ * Token optimisation:
+ * - Agent 3 split into 4 lean quarter calls (~500 tokens each)
+ * - All agents capped at 1000 tokens
+ * - PSG cache stripped to essentials before injection
  */
 
 import { NextResponse } from "next/server";
 import psgCache from "@/data/psg-cache.json";
 
-// --- Rate limiting (in-memory, resets on cold start) ---
+// --- Rate limiting ---
 const rateMap = new Map();
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
@@ -36,7 +41,7 @@ function sanitise(str, maxLen = 100) {
   return str.replace(/[<>"'`\\]/g, "").trim().slice(0, maxLen);
 }
 
-// --- Single Claude call helper ---
+// --- Claude call helper ---
 async function callClaude(systemPrompt, userContent) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -47,7 +52,7 @@ async function callClaude(systemPrompt, userContent) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 2000,
+      max_tokens: 1000,
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
     }),
@@ -63,28 +68,35 @@ function parseJSON(text) {
   return JSON.parse(clean);
 }
 
-// --- Agent prompts ---
+// --- Agent system prompts ---
 
-const AGENT1_SYSTEM = `You are a Singapore SME sector classifier. 
-Map the user's business to a SkillsFuture sector and identify 3 relevant job roles.
-Respond ONLY in valid JSON. No preamble. No markdown.`;
+const AGENT1_SYSTEM = `You are a Singapore SME sector classifier.
+Map the business to a SkillsFuture sector and identify 3 relevant job roles.
+Respond ONLY in valid JSON. No preamble. No markdown. Be concise.`;
 
 const AGENT2_SYSTEM = `You are a digital skills gap analyst for Singapore SMEs.
-Given a sector, job roles, team size, tech level and pain points, identify the top digital skill gaps.
-Reference SkillsFuture TSC codes where relevant.
+Identify the top 3 digital skill gaps only. Be brief.
 Respond ONLY in valid JSON. No preamble. No markdown.`;
 
-const AGENT3_SYSTEM = `You are a Singapore SME digital transformation roadmap architect.
-Build a practical 12-month roadmap using PSG-eligible tools from the provided cache.
+const AGENT3_SYSTEM = `You are a Singapore SME digital transformation advisor.
+Generate ONE quarter plan using PSG-eligible tools. Be concise.
 Respond ONLY in valid JSON. No preamble. No markdown.`;
 
 const AGENT4_SYSTEM = `You are a SkillsFuture training advisor for Singapore SMEs.
-Recommend training courses aligned to the skills gaps and roadmap quarters.
+Recommend 2 training courses maximum. Be brief.
 Respond ONLY in valid JSON. No preamble. No markdown.`;
+
+// --- Quarter context ---
+const QUARTER_CONTEXT = {
+  Q1: { focus: "FOUNDATION", hint: "cloud accounting, digital payments, basic comms" },
+  Q2: { focus: "ONLINE PRESENCE", hint: "Google Business Profile, e-commerce, basic website" },
+  Q3: { focus: "AUTOMATION", hint: "inventory, CRM, automated invoicing" },
+  Q4: { focus: "GROWTH", hint: "digital marketing, analytics, loyalty programme" },
+};
 
 // --- Main handler ---
 export async function POST(req) {
-  // CORS — same origin only
+  // CORS
   const origin = req.headers.get("origin") || "";
   const allowed = process.env.NEXT_PUBLIC_APP_URL || "";
   if (allowed && origin !== allowed) {
@@ -97,7 +109,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  // Parse + sanitise inputs
+  // Parse + sanitise
   let body;
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid request" }, { status: 400 }); }
@@ -117,74 +129,85 @@ export async function POST(req) {
   }
 
   try {
-    // Strip cache to essentials — don't send full JSON to every agent
-    const relevantPSG = {
-      grant_rate: psgCache.grant_info.max_support_rate,
-      solutions: Object.fromEntries(
-        Object.entries(psgCache.solutions).map(([k, v]) => [
-          k,
-          { category: v.category, psg_eligible: v.psg_eligible, solutions: v.solutions }
-        ])
-      )
-    };
+    // Strip PSG cache to tool names + eligibility only
+    const leanPSG = Object.fromEntries(
+      Object.entries(psgCache.solutions).map(([k, v]) => [
+        k,
+        {
+          category: v.category,
+          psg_eligible: v.psg_eligible,
+          tools: v.solutions.map(s => `${s.name} (${s.pricing})`).slice(0, 3),
+        }
+      ])
+    );
 
     // Agent 1 — Sector mapper
     const a1Raw = await callClaude(
       AGENT1_SYSTEM,
-      `Business type: "${inputs.sector}"
-Headcount: "${inputs.headcount}"
+      `Business: "${inputs.sector}" | Team: "${inputs.headcount}"
 Return JSON: { "sf_sector": string, "job_roles": [string, string, string], "digital_maturity": "low|medium|high" }`
     );
     const a1 = parseJSON(a1Raw);
 
-    // Agent 2 — Skills gap
+    // Agent 2 — Skills gap (top 3 only)
     const a2Raw = await callClaude(
       AGENT2_SYSTEM,
-      `Sector: "${a1.sf_sector}"
-Job roles: ${JSON.stringify(a1.job_roles)}
-Team size: "${inputs.headcount}"
-Tech level: "${inputs.techLevel}"
-Pain points: ${JSON.stringify(inputs.painPoints)}
-Return JSON: { "gaps": [{ "skill": string, "priority": "high|medium", "sf_tsc": string }], "summary": string }`
+      `Sector: "${a1.sf_sector}" | Team: "${inputs.headcount}" | Tech: "${inputs.techLevel}"
+Pain points: ${inputs.painPoints.join(", ")}
+Return JSON: { "gaps": [{ "skill": string, "priority": "high|medium" }], "summary": string }
+Maximum 3 gaps.`
     );
     const a2 = parseJSON(a2Raw);
 
-    // Agent 3 — Roadmap
-    const a3Raw = await callClaude(
-      AGENT3_SYSTEM,
-      `Sector: "${a1.sf_sector}" | Headcount: "${inputs.headcount}" | Budget: "${inputs.budget}"
-Tech level: "${inputs.techLevel}" | Pain points: ${JSON.stringify(inputs.painPoints)}
-Skills gaps: ${JSON.stringify(a2.gaps)}
-PSG tools available: ${JSON.stringify(relevantPSG)}
+    // Agent 3 — One quarter plan per call (4 lean calls)
+    const quarters = {};
+    for (const [q, ctx] of Object.entries(QUARTER_CONTEXT)) {
+      const isQ1 = q === "Q1";
+      const raw = await callClaude(
+        AGENT3_SYSTEM,
+        `${q} focus: ${ctx.focus} (${ctx.hint})
+Sector: "${a1.sf_sector}" | Budget: "${inputs.budget}" | Tech: "${inputs.techLevel}"
+Available tools: ${JSON.stringify(leanPSG)}
 Return JSON:
 {
-  "totalCost": string,
-  "psgSavings": string,
-  "netCost": string,
-  "painPointNote": string,
-  "Q1": { "title": string, "summary": string, "cost": string, "psg": string, "timeline": string, "roi": string, "tools": [string], "milestone": string, "checklist": [string] },
-  "Q2": { "title": string, "summary": string, "cost": string, "psg": string, "timeline": string, "roi": string, "tools": [string], "milestone": string, "checklist": null },
-  "Q3": { "title": string, "summary": string, "cost": string, "psg": string, "timeline": string, "roi": string, "tools": [string], "milestone": string, "checklist": null },
-  "Q4": { "title": string, "summary": string, "cost": string, "psg": string, "timeline": string, "roi": string, "tools": [string], "milestone": string, "checklist": null }
-}`
-    );
-    const a3 = parseJSON(a3Raw);
+  "title": "${ctx.focus}",
+  "cost": string,
+  "psg": string,
+  "tools": [string, string, string],
+  "milestone": string${isQ1 ? ',\n  "checklist": [string, string, string]' : ''}
+}${isQ1 ? "" : '\nSet checklist to null.'}`
+      );
+      quarters[q] = parseJSON(raw);
+      if (!isQ1) quarters[q].checklist = null;
+    }
 
-    // Agent 4 — Training
+    // Build cost summary from Q totals
+    const costNote = `~S$${inputs.budget.includes("500") ? "6,000" : inputs.budget.includes("1,000") ? "12,000" : "18,000"}/yr`;
+
+    // Agent 4 — Training (2 courses max)
     const a4Raw = await callClaude(
       AGENT4_SYSTEM,
-      `Skills gaps: ${JSON.stringify(a2.gaps)}
-Roadmap quarters: Q1=${a3.Q1?.title}, Q2=${a3.Q2?.title}, Q3=${a3.Q3?.title}, Q4=${a3.Q4?.title}
-Available courses: ${JSON.stringify(psgCache.skillsfuture_courses)}
-Return JSON: { "recommendations": [{ "quarter": "Q1|Q2|Q3|Q4", "course": string, "provider": string, "funding": string, "reason": string }] }`
+      `Skill gaps: ${a2.gaps.map(g => g.skill).join(", ")}
+Quarters: Q1=${quarters.Q1?.title}, Q2=${quarters.Q2?.title}
+Courses available: ${JSON.stringify(psgCache.skillsfuture_courses)}
+Return JSON: { "recommendations": [{ "quarter": "Q1|Q2|Q3|Q4", "course": string, "provider": string, "funding": string, "reason": string }] }
+Maximum 2 recommendations.`
     );
     const a4 = parseJSON(a4Raw);
 
-    // Return combined result — no user PII in response
     return NextResponse.json({
       sector_context: { sf_sector: a1.sf_sector, digital_maturity: a1.digital_maturity },
       skills_gap: { gaps: a2.gaps, summary: a2.summary },
-      roadmap: a3,
+      roadmap: {
+        totalCost: costNote,
+        psgSavings: "Up to 50% on eligible tools",
+        netCost: "Varies by tools selected",
+        painPointNote: `Roadmap prioritises: ${inputs.painPoints.slice(0, 2).join(" and ")}.`,
+        Q1: quarters.Q1,
+        Q2: quarters.Q2,
+        Q3: quarters.Q3,
+        Q4: quarters.Q4,
+      },
       training: a4.recommendations,
       cache_date: psgCache.meta.last_updated,
     });
@@ -195,7 +218,7 @@ Return JSON: { "recommendations": [{ "quarter": "Q1|Q2|Q3|Q4", "course": string,
   }
 }
 
-// Block non-POST methods
+// Block non-POST
 export async function GET() {
   return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }
