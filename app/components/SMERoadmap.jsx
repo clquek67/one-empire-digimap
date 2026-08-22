@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * SMERoadmap.jsx
  * Minimal, secure frontend. All Claude calls go through /api/roadmap.
