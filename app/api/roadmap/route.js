@@ -224,7 +224,7 @@ Maximum 2 recommendations.`
       training: a4.recommendations,
       grants_summary: Object.fromEntries(
         Object.entries(psgCache.grants).map(([k, v]) => [
-          k, { name: v.name, support_rate: v.support_rate, best_for: v.best_for }
+          k, { name: v.name, support_rate: v.support_rate, best_for: v.best_for, url: v.url }
         ])
       ),
       sea_ready: a1.digital_maturity === "high",
