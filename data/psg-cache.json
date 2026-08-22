@@ -1,10 +1,83 @@
 {
   "meta": {
-    "version": "1.0",
+    "version": "2.0",
     "last_updated": "2026-08-01",
     "expires": "2026-11-01",
     "source": "EnterpriseSG / IMDA PSG Pre-approved Solutions",
     "note": "Refresh quarterly via n8n workflow."
+  },
+  "grants": {
+    "PSG": {
+      "name": "Productivity Solutions Grant",
+      "admin": "EnterpriseSG / IMDA",
+      "support_rate": "Up to 50%",
+      "max_claim": "No cap per solution",
+      "focus": "Pre-approved digital tools and solutions",
+      "best_for": "Q1 foundation tools — accounting, POS, CRM, inventory",
+      "url": "https://www.enterprisesg.gov.sg/financial-support/productivity-solutions-grant",
+      "eligibility": [
+        "Registered and operating in Singapore",
+        "At least 30% local shareholding",
+        "Annual turnover < S$100M OR < 200 employees"
+      ]
+    },
+    "EDG": {
+      "name": "Enterprise Development Grant",
+      "admin": "EnterpriseSG",
+      "support_rate": "Up to 50%",
+      "max_claim": "No fixed cap",
+      "focus": "Core capabilities, innovation, internationalisation",
+      "best_for": "Q3-Q4 — branding, process redesign, market expansion strategy",
+      "url": "https://www.enterprisesg.gov.sg/financial-support/enterprise-development-grant",
+      "eligibility": [
+        "Registered and operating in Singapore",
+        "At least 30% local shareholding",
+        "Annual turnover < S$500M"
+      ]
+    },
+    "MRA": {
+      "name": "Market Readiness Assistance Grant",
+      "admin": "EnterpriseSG",
+      "support_rate": "Up to 50%",
+      "max_claim": "S$100,000 per new market",
+      "focus": "Overseas market setup, business development, market research",
+      "best_for": "Q4 growth — expanding to Malaysia, Indonesia, Philippines",
+      "url": "https://www.enterprisesg.gov.sg/financial-support/market-readiness-assistance-grant",
+      "eligibility": [
+        "Registered and operating in Singapore",
+        "At least 30% local shareholding",
+        "Annual turnover < S$100M OR < 200 employees",
+        "Must be entering a new overseas market"
+      ]
+    },
+    "SFEC": {
+      "name": "SkillsFuture Enterprise Credit",
+      "admin": "SkillsFuture Singapore",
+      "support_rate": "Up to 90% course fee subsidy + S$10,000 credit",
+      "max_claim": "S$10,000 credit per enterprise",
+      "focus": "Workforce training and skills upgrading",
+      "best_for": "Q1-Q2 — upskilling staff on new digital tools",
+      "url": "https://www.skillsfuture.gov.sg/sfec",
+      "eligibility": [
+        "Registered and operating in Singapore",
+        "At least 3 Singapore Citizens or PRs",
+        "Must contribute to employees CPF"
+      ]
+    },
+    "CTO-a-S": {
+      "name": "CTO-as-a-Service",
+      "admin": "IMDA",
+      "support_rate": "Up to 70%",
+      "max_claim": "S$8,000 per company",
+      "focus": "Technology advisory and digital roadmap consultation",
+      "best_for": "Q1 — getting expert tech advice before committing to tools",
+      "url": "https://www.imda.gov.sg/how-we-can-help/smes-go-digital/cto-as-a-service",
+      "eligibility": [
+        "Registered and operating in Singapore",
+        "SME with fewer than 200 employees",
+        "Annual turnover < S$100M"
+      ]
+    }
   },
   "grant_info": {
     "name": "Productivity Solutions Grant (PSG)",
@@ -124,6 +197,29 @@
       "title": "Digital Marketing Fundamentals",
       "provider": "General Assembly / Equinet Academy",
       "funding": "Up to 70% SSG subsidy"
+    }
+  },
+  "sea_markets": {
+    "MY": {
+      "name": "Malaysia",
+      "grant": "MRA",
+      "platforms": ["Shopee MY", "Lazada MY", "PGMall"],
+      "payment": "FPX, GrabPay, Touch n Go",
+      "readiness_factors": ["Halal certification", "Bahasa Malaysia content", "MySST registration"]
+    },
+    "ID": {
+      "name": "Indonesia",
+      "grant": "MRA",
+      "platforms": ["Tokopedia", "Shopee ID", "Bukalapak"],
+      "payment": "GoPay, OVO, QRIS",
+      "readiness_factors": ["NIB registration", "Bahasa Indonesia content", "Local partner"]
+    },
+    "PH": {
+      "name": "Philippines",
+      "grant": "MRA",
+      "platforms": ["Shopee PH", "Lazada PH", "Zalora"],
+      "payment": "GCash, Maya, COD",
+      "readiness_factors": ["SEC registration", "Filipino content", "Local logistics partner"]
     }
   }
 }
