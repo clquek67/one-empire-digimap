@@ -140,16 +140,11 @@ function GrantsSummary({ grants }) {
               </div>
               <div style={{ color: "#888", fontSize: 12 }}>{v.name}</div>
               <div style={{ color: "#666", fontSize: 11, marginTop: 2 }}>{v.best_for}</div>
-{v.url && (
-  
-    href={v.url}
-    target="_blank"
-    rel="noopener noreferrer"
-    style={{ color: "#00E5D8", fontSize: 11, marginTop: 4, display: "inline-block" }}
-  >
-    Apply → {v.url.replace("https://", "")}
-    </a>
-)}
+              {v.url && (
+                <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color: "#00E5D8", fontSize: 11, marginTop: 4, display: "inline-block" }}>
+                  Apply → {v.url.replace("https://", "")}
+                </a>
+              )}
             </div>
           ))}
         </div>
