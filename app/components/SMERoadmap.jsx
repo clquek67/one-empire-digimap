@@ -148,7 +148,7 @@ function GrantsSummary({ grants }) {
     style={{ color: "#00E5D8", fontSize: 11, marginTop: 4, display: "inline-block" }}
   >
     Apply → {v.url.replace("https://", "")}
-  </a>
+    </a>
 )}
             </div>
           ))}
