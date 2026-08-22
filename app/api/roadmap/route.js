@@ -1,18 +1,13 @@
 /**
  * /app/api/roadmap/route.js
- * Secure server-side API route — Claude API key never leaves the server.
+ * v2.0 — 5-grant aware, SEA-ready pipeline
  *
  * Security:
- * - API key read from env only (ANTHROPIC_API_KEY)
+ * - API key server-side only
  * - Input sanitised before prompt injection
- * - Rate limit: 10 requests per IP per minute
- * - No user data logged or stored
+ * - Rate limited: 10 req/IP/min
+ * - No user data stored
  * - CORS locked to same origin
- *
- * Token optimisation:
- * - Agent 3 split into 4 lean quarter calls (~500 tokens each)
- * - All agents capped at 1000 tokens
- * - PSG cache stripped to essentials before injection
  */
 
 import { NextResponse } from "next/server";
@@ -79,8 +74,9 @@ Identify the top 3 digital skill gaps only. Be brief.
 Respond ONLY in valid JSON. No preamble. No markdown.`;
 
 const AGENT3_SYSTEM = `You are a Singapore SME digital transformation advisor.
-Generate ONE quarter plan using PSG-eligible tools. Be concise.
-Respond ONLY in valid JSON. No preamble. No markdown.`;
+Generate ONE quarter plan. Recommend the most relevant SG government grant for this quarter.
+Grants available: PSG (digital tools, 50%), EDG (capabilities/branding, 50%), MRA (overseas expansion, 50%), SFEC (staff training, 90%), CTO-a-S (tech advisory, 70%).
+Be concise. Respond ONLY in valid JSON. No preamble. No markdown.`;
 
 const AGENT4_SYSTEM = `You are a SkillsFuture training advisor for Singapore SMEs.
 Recommend 2 training courses maximum. Be brief.
@@ -88,10 +84,10 @@ Respond ONLY in valid JSON. No preamble. No markdown.`;
 
 // --- Quarter context ---
 const QUARTER_CONTEXT = {
-  Q1: { focus: "FOUNDATION", hint: "cloud accounting, digital payments, basic comms" },
-  Q2: { focus: "ONLINE PRESENCE", hint: "Google Business Profile, e-commerce, basic website" },
-  Q3: { focus: "AUTOMATION", hint: "inventory, CRM, automated invoicing" },
-  Q4: { focus: "GROWTH", hint: "digital marketing, analytics, loyalty programme" },
+  Q1: { focus: "FOUNDATION", hint: "cloud accounting, digital payments, basic comms. Best grant: PSG or CTO-a-S" },
+  Q2: { focus: "ONLINE PRESENCE", hint: "Google Business, e-commerce, basic website. Best grant: PSG" },
+  Q3: { focus: "AUTOMATION", hint: "inventory, CRM, invoicing. Best grant: PSG or EDG" },
+  Q4: { focus: "GROWTH", hint: "digital marketing, analytics, loyalty, possible SEA expansion. Best grant: EDG or MRA" },
 };
 
 // --- Main handler ---
@@ -129,8 +125,8 @@ export async function POST(req) {
   }
 
   try {
-    // Strip PSG cache to tool names + eligibility only
-    const leanPSG = Object.fromEntries(
+    // Lean PSG tool list — names + pricing only
+    const leanTools = Object.fromEntries(
       Object.entries(psgCache.solutions).map(([k, v]) => [
         k,
         {
@@ -138,6 +134,14 @@ export async function POST(req) {
           psg_eligible: v.psg_eligible,
           tools: v.solutions.map(s => `${s.name} (${s.pricing})`).slice(0, 3),
         }
+      ])
+    );
+
+    // Lean grant summary for Agent 3
+    const leanGrants = Object.fromEntries(
+      Object.entries(psgCache.grants).map(([k, v]) => [
+        k,
+        { support_rate: v.support_rate, best_for: v.best_for }
       ])
     );
 
@@ -149,7 +153,7 @@ Return JSON: { "sf_sector": string, "job_roles": [string, string, string], "digi
     );
     const a1 = parseJSON(a1Raw);
 
-    // Agent 2 — Skills gap (top 3 only)
+    // Agent 2 — Skills gap
     const a2Raw = await callClaude(
       AGENT2_SYSTEM,
       `Sector: "${a1.sf_sector}" | Team: "${inputs.headcount}" | Tech: "${inputs.techLevel}"
@@ -159,7 +163,7 @@ Maximum 3 gaps.`
     );
     const a2 = parseJSON(a2Raw);
 
-    // Agent 3 — One quarter plan per call (4 lean calls)
+    // Agent 3 — One quarter per call (4 calls, token-efficient)
     const quarters = {};
     for (const [q, ctx] of Object.entries(QUARTER_CONTEXT)) {
       const isQ1 = q === "Q1";
@@ -167,41 +171,50 @@ Maximum 3 gaps.`
         AGENT3_SYSTEM,
         `${q} focus: ${ctx.focus} (${ctx.hint})
 Sector: "${a1.sf_sector}" | Budget: "${inputs.budget}" | Tech: "${inputs.techLevel}"
-Available tools: ${JSON.stringify(leanPSG)}
+Tools available: ${JSON.stringify(leanTools)}
+Grants available: ${JSON.stringify(leanGrants)}
 Return JSON:
 {
   "title": "${ctx.focus}",
   "cost": string,
-  "psg": string,
+  "grant": string,
+  "grant_benefit": string,
   "tools": [string, string, string],
   "milestone": string${isQ1 ? ',\n  "checklist": [string, string, string]' : ''}
-}${isQ1 ? "" : '\nSet checklist to null.'}`
+}${isQ1 ? "" : "\nSet checklist to null."}`
       );
       quarters[q] = parseJSON(raw);
       if (!isQ1) quarters[q].checklist = null;
     }
 
-    // Build cost summary from Q totals
-    const costNote = `~S$${inputs.budget.includes("500") ? "6,000" : inputs.budget.includes("1,000") ? "12,000" : "18,000"}/yr`;
-
-    // Agent 4 — Training (2 courses max)
+    // Agent 4 — Training
     const a4Raw = await callClaude(
       AGENT4_SYSTEM,
       `Skill gaps: ${a2.gaps.map(g => g.skill).join(", ")}
 Quarters: Q1=${quarters.Q1?.title}, Q2=${quarters.Q2?.title}
-Courses available: ${JSON.stringify(psgCache.skillsfuture_courses)}
+Courses: ${JSON.stringify(psgCache.skillsfuture_courses)}
+SFEC grant: ${psgCache.grants.SFEC.support_rate} subsidy available.
 Return JSON: { "recommendations": [{ "quarter": "Q1|Q2|Q3|Q4", "course": string, "provider": string, "funding": string, "reason": string }] }
 Maximum 2 recommendations.`
     );
     const a4 = parseJSON(a4Raw);
 
+    // Cost estimate based on budget range
+    const budgetMap = {
+      "< S$500/mo": { total: "~S$4,000/yr", net: "~S$2,000/yr after PSG" },
+      "S$500–1,000/mo": { total: "~S$8,000/yr", net: "~S$4,000/yr after PSG" },
+      "S$1,000–2,000/mo": { total: "~S$15,000/yr", net: "~S$7,500/yr after PSG" },
+      "S$2,000+/mo": { total: "~S$25,000/yr", net: "~S$12,500/yr after PSG" },
+    };
+    const costs = budgetMap[inputs.budget] || { total: "~S$12,000/yr", net: "~S$6,000/yr after PSG" };
+
     return NextResponse.json({
       sector_context: { sf_sector: a1.sf_sector, digital_maturity: a1.digital_maturity },
       skills_gap: { gaps: a2.gaps, summary: a2.summary },
       roadmap: {
-        totalCost: costNote,
-        psgSavings: "Up to 50% on eligible tools",
-        netCost: "Varies by tools selected",
+        totalCost: costs.total,
+        psgSavings: "Up to 50% on PSG-eligible tools",
+        netCost: costs.net,
         painPointNote: `Roadmap prioritises: ${inputs.painPoints.slice(0, 2).join(" and ")}.`,
         Q1: quarters.Q1,
         Q2: quarters.Q2,
@@ -209,6 +222,12 @@ Maximum 2 recommendations.`
         Q4: quarters.Q4,
       },
       training: a4.recommendations,
+      grants_summary: Object.fromEntries(
+        Object.entries(psgCache.grants).map(([k, v]) => [
+          k, { name: v.name, support_rate: v.support_rate, best_for: v.best_for }
+        ])
+      ),
+      sea_ready: a1.digital_maturity === "high",
       cache_date: psgCache.meta.last_updated,
     });
 
